@@ -1,0 +1,8 @@
+        SET ANTENNA vs. INPUT 2
+160 m: 1 N N |30 m: 1 N N |12 m: 3 1 5
+ 80 m: 1 2 N |20 m: 3 1 5 |10 m: 3 1 5
+ 60 m: 1 N N |17 m: 3 1 5 | 6 m: 3 6 4
+ 40 m: 1 2 5 |15 m: 3 1 5 |       SAVE
+
+      SET 2nd ANTENNA ON 80m BAND
+[◄▲][▼►]:SEL [TUNE]:ATU Y/N [SET]:CHANGE

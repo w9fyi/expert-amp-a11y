@@ -1,0 +1,8 @@
+            TUNABLE ANTENNAS
+    ANT1: No      ANT4: No      PORT
+    ANT2: No      ANT5: No
+    ANT3: No      ANT6: No      SAVE
+
+
+     SET ANTENNA 2 AS TUNABLE TYPE
+ [◄▲][▼►]:SELECT           [SET]:CHANGE

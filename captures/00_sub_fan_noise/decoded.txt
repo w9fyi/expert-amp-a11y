@@ -1,0 +1,10 @@
+            POWER-SUPPLY FAN
+
+   [ ] QUIET  MODE (SSB ONLY)
+   [[AE]] NORMAL MODE (ALL MODES)   SAVE
+
+
+    ALWAYS SPINNING WHILE IN OPERATE
+ [◄▲][▼►]:SELECT          [SET]:CONFIRM
+
+# unknown glyphs: 0xAE

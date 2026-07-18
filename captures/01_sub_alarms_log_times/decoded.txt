@@ -1,0 +1,10 @@
+         OP Time:    1944:18:52
+10)P2B01   1941:17:47 AFTER   0:03:03
+ 9)P2B01   1865:24:44 AFTER   0:10:47
+ 8)P2B01   1852:07:39 AFTER   0:02:05
+ 7)P2B01   1761:28:35 AFTER  12:17:01
+
+ [[99][9A]] [[9B][9C]] | [TUNE] & [OP]  |   [SET]
+  SCROLL   | CLEAR HISTORY  |   QUIT
+
+# unknown glyphs: 0x99, 0x9A, 0x9B, 0x9C

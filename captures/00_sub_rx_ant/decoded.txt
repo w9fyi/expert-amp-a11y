@@ -1,0 +1,8 @@
+            RX-ONLY ANTENNA
+                  ANT4: No
+    ANT2: No      ANT5: No
+    ANT3: No      ANT6: No      SAVE
+
+
+        SET ANTENNA 2 AS RX-ONLY
+ [◄▲][▼►]:SELECT           [SET]:CHANGE

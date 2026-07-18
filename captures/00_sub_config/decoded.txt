@@ -1,0 +1,8 @@
+             OTHER SETTINGS
+
+  [ ] REMOTE ANT SWITCH
+  [ ] SO2R MATRIX
+  [ ] COMBINER                    SAVE
+
+         REMOTE ANTENNA SWITCH
+ [◄▲][▼►]:SELECT           [SET]:CHANGE

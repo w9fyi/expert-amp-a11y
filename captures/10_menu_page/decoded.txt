@@ -1,0 +1,10 @@
+       SETUP OPTIONS vs. INPUT 2
+ CONFIG        DISPLAY        ALARMS LOG
+ ANTENNA       BEEP    On     TUN ANT
+ CAT           START   Oprt   RX  ANT
+ MANUAL TUNE   TEMP.   °F     FAN NOISE
+                              EXIT
+       TUNABLE ANTENNAS SETTINGS
+ [[99][9A]][[9B][9C]]:SELECT          [SET]:CONFIRM
+
+# unknown glyphs: 0x99, 0x9A, 0x9B, 0x9C

@@ -1,0 +1,8 @@
+
+                       EXPERT 2K-FA
+                       Solid State
+                       Fully Automatic
+                Standby
+
+ IN | BAND |ANT| CAT | OUT | SWR | TEMP
+  2 | 80 m | 2 |FLEX | MID |--.--| 81°F
