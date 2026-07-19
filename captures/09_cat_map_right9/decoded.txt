@@ -1,0 +1,8 @@
+      SET CAT INTERFACE ON INPUT 2
+ SPE          TEN-TEC
+ ICOM         FLEX-RADIO
+ KENWOOD      ELECRAFT
+ YAESU        NONE                 EXIT
+
+           SET INTERFACE TYPE
+ [◄▲][▼►]:SELECT          [SET]:CONFIRM

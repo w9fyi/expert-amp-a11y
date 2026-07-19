@@ -1,0 +1,10 @@
+       SET YAESU MODEL ON INPUT 2
+[A5]
+[A4]            STORING DATA!
+[A4]          [97]───────────────▫
+[A6]
+ FT897        FT1000 MP1   BAND-DATA
+         SET PROPER YAESU MODEL
+ [◄▲][▼►]:SELECT          [SET]:CONFIRM
+
+# unknown glyphs: 0x97, 0xA4, 0xA5, 0xA6
