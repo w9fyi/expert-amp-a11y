@@ -1,0 +1,8 @@
+            POWER-SUPPLY FAN
+
+   [ ] QUIET  MODE (SSB ONLY)
+   [✓] NORMAL MODE (ALL MODES)   SAVE
+
+
+         SAVE SETTINGS AND EXIT
+ [◄▲][▼►]:SELECT          [SET]:CONFIRM

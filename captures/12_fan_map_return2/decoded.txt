@@ -1,0 +1,8 @@
+            POWER-SUPPLY FAN
+
+   [ ] QUIET  MODE (SSB ONLY)
+   [✓] NORMAL MODE (ALL MODES)   SAVE
+
+
+    SPINNING ON TX WHILE IN OPERATE
+ [◄▲][▼►]:SELECT          [SET]:CONFIRM
