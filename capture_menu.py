@@ -19,10 +19,22 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from decode_display import decode_grid
+import capture_common as cc
 
 BASE = "http://raspbnodered.local:8088/api/v1"
 CAPDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
+EVIDENCE_PATH = os.path.join(CAPDIR, "evidence.ndjson")
 MAX_PAGES = 15  # expect 11 menu items; hard stop well above that
+
+_seen_hashes = set()
+_previous_hash = ""
+
+
+def init_evidence():
+    """Load existing evidence hashes for dedup+resume. Call once per session."""
+    global _seen_hashes
+    os.makedirs(CAPDIR, exist_ok=True)
+    _seen_hashes = cc.load_seen_hashes(EVIDENCE_PATH)
 
 
 def get_json(path):
@@ -53,7 +65,8 @@ def press(name):
     print(f"  [pressed {name}]")
 
 
-def save_capture(index, label, state):
+def save_capture(index, label, state, transition_label=""):
+    global _previous_hash
     d = os.path.join(CAPDIR, f"{index:02d}_{label}")
     os.makedirs(d, exist_ok=True)
     json.dump(state, open(os.path.join(d, "state.json"), "w"))
@@ -64,7 +77,12 @@ def save_capture(index, label, state):
             f.write("\n# unknown glyphs: " + ", ".join(f"0x{c:02X}" for c in sorted(unknown)) + "\n")
     with urllib.request.urlopen(f"{BASE}/display/render.png", timeout=8) as r:
         open(os.path.join(d, "render.png"), "wb").write(r.read())
-    print(f"  saved {index:02d}_{label}: " + " / ".join(l.strip() for l in lines if l.strip())[:100])
+
+    h, was_new = cc.record_evidence(EVIDENCE_PATH, _seen_hashes, _previous_hash, transition_label)
+    _previous_hash = h
+    evidence_note = "new evidence" if was_new else "already in evidence (dup screen)"
+
+    print(f"  saved {index:02d}_{label} [{evidence_note}]: " + " / ".join(l.strip() for l in lines if l.strip())[:100])
     return lines
 
 
@@ -93,6 +111,7 @@ def main():
         sys.exit(2)
 
     os.makedirs(CAPDIR, exist_ok=True)
+    init_evidence()
     splash = get_display()
     save_capture(0, "standby_splash", splash)
 
@@ -103,7 +122,7 @@ def main():
         bail("display did not change after SET press")
 
     pages = [menu_first]
-    save_capture(1, "menu_page", menu_first)
+    save_capture(1, "menu_page", menu_first, transition_label="pressed SET")
 
     for i in range(2, MAX_PAGES + 2):
         press("right")
@@ -116,7 +135,7 @@ def main():
         if nxt == splash:
             bail("unexpectedly back at splash screen mid-traversal")
         pages.append(nxt)
-        save_capture(i, "menu_page", nxt)
+        save_capture(i, "menu_page", nxt, transition_label="pressed RIGHT")
     else:
         bail(f"no wrap after {MAX_PAGES} pages — unexpected menu size")
 

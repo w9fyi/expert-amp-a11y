@@ -18,7 +18,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from decode_display import decode_cell, decode_grid
-from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR
+from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR, init_evidence
 
 
 def highlighted_text(state):
@@ -49,6 +49,7 @@ def main():
         print(f"NOT SAFE: operatingState={st.get('operatingState')} recentContact={st.get('recentContact')}")
         sys.exit(2)
 
+    init_evidence()
     splash = get_display()
     press("set")
     cur = wait_for_change(splash)
@@ -74,7 +75,7 @@ def main():
 
     d = os.path.join(CAPDIR, label)
     os.makedirs(d, exist_ok=True)
-    save_capture(0, label, sub)
+    save_capture(0, label, sub, transition_label=f"SET then RIGHT x{rights} then SET")
     lines, unknown = decode_grid(sub["chars"])
     print("=== sub-page ===")
     for r, l in enumerate(lines):
