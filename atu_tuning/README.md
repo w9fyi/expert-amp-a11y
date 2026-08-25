@@ -28,8 +28,12 @@ starting closer to 3.5 MHz too).
    clean, unkeyed radio.
 4. Scripts must run **from the Pi** (`raspbnodered.local`) — they talk to
    `expert-amp-server` on `localhost:8088` and open their own direct
-   connection to the FlexRadio's SmartSDR API at `192.168.50.117:4992` for
-   the safety failsafe. Copy them over and run via SSH, e.g.:
+   connection to the FlexRadio's SmartSDR API at `flex.lan:4992` for
+   the safety failsafe. Override with the `FLEX_HOST` / `FLEX_PORT` env vars if
+   the radio moves. (Was hardcoded to `192.168.50.117` — the FLEX-8400 — which
+   went dead when the FLEX-8600 replaced it on 2026-08-22, leaving the failsafe
+   unable to reach the radio. Use the hostname, not a literal.) Copy them over
+   and run via SSH, e.g.:
    ```
    scp tune_sweep_and_save.py ai5os@raspbnodered.local:/tmp/
    ssh ai5os@raspbnodered.local "python3 /tmp/tune_sweep_and_save.py"

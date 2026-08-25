@@ -6,13 +6,17 @@ point was actually best across the whole extension, save, and verify.
 Safety cap in case it never climbs.
 """
 import json
+import os
 import socket
 import time
 import urllib.request
 
 AMP_BASE = "http://localhost:8088/api/v1"
-FLEX_HOST = "192.168.50.117"
-FLEX_PORT = 4992
+# Hostname, not a literal IP: the radio was swapped once already (FLEX-8400 .117 ->
+# FLEX-8600 .157) and the stale literal left the tune-off failsafe below unable to
+# reach the radio. flex.lan is a UDR-7 static record pinned by DHCP reservation.
+FLEX_HOST = os.environ.get("FLEX_HOST", "flex.lan")
+FLEX_PORT = int(os.environ.get("FLEX_PORT", "4992"))
 
 MAX_EXTEND_STEPS = 30
 CLIMB_STREAK_TO_STOP = 3

@@ -8,13 +8,17 @@ the entire explored range. C first (known target ~10 steps away), then L
 hold-tune to save, unkey, exit, re-enter (no carrier) to verify persistence.
 """
 import json
+import os
 import socket
 import time
 import urllib.request
 
 AMP_BASE = "http://localhost:8088/api/v1"
-FLEX_HOST = "192.168.50.117"
-FLEX_PORT = 4992
+# Hostname, not a literal IP: the radio was swapped once already (FLEX-8400 .117 ->
+# FLEX-8600 .157) and the stale literal left the tune-off failsafe below unable to
+# reach the radio. flex.lan is a UDR-7 static record pinned by DHCP reservation.
+FLEX_HOST = os.environ.get("FLEX_HOST", "flex.lan")
+FLEX_PORT = int(os.environ.get("FLEX_PORT", "4992"))
 
 C_SWEEP_STEPS = 15
 L_SWEEP_STEPS = 25
