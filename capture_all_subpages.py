@@ -16,7 +16,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR
+from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR, preflight
 from capture_subpage import highlighted_text
 from decode_display import decode_grid, decode_cell
 
@@ -84,8 +84,8 @@ def exit_subpage(state, splash, menu_first, label, view_idx=1):
 
 def main():
     st = get_status()
-    if st.get("operatingState") != "standby" or not st.get("recentContact"):
-        fatal(f"not safe to start: {st.get('operatingState')}/{st.get('recentContact')}")
+    if not preflight(st)[0]:
+        fatal(f"not safe to start: {preflight(st)[1]}")
 
     baseline = get_display()
     print("baseline splash captured")

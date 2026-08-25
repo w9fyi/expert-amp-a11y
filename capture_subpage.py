@@ -18,7 +18,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from decode_display import decode_cell, decode_grid
-from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR, init_evidence
+from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR, init_evidence, preflight
 
 
 def highlighted_text(state):
@@ -45,8 +45,8 @@ def main():
     rights, expect, label = int(sys.argv[1]), sys.argv[2], sys.argv[3]
 
     st = get_status()
-    if st.get("operatingState") != "standby" or not st.get("recentContact"):
-        print(f"NOT SAFE: operatingState={st.get('operatingState')} recentContact={st.get('recentContact')}")
+    if not preflight(st)[0]:
+        print(f"NOT SAFE: {preflight(st)[1]}")
         sys.exit(2)
 
     init_evidence()

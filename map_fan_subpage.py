@@ -13,7 +13,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from decode_display import decode_grid
-from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR
+from capture_menu import get_status, get_display, press, save_capture, wait_for_change, CAPDIR, preflight
 from capture_subpage import highlighted_text, bail
 
 FAN_RIGHTS = 11  # CONFIG -> ... -> FAN NOISE, per MENU_MAP.md
@@ -32,8 +32,8 @@ def show(label, state):
 
 def main():
     st = get_status()
-    if st.get("operatingState") != "standby" or not st.get("recentContact"):
-        print(f"NOT SAFE: operatingState={st.get('operatingState')} recentContact={st.get('recentContact')}")
+    if not preflight(st)[0]:
+        print(f"NOT SAFE: {preflight(st)[1]}")
         sys.exit(2)
 
     splash = get_display()

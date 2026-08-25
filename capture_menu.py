@@ -17,11 +17,17 @@ import sys
 import time
 import urllib.request
 
+try:
+    import websocket as _ws_client  # pip package "websocket-client"
+except ImportError:
+    _ws_client = None
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from decode_display import decode_grid
 import capture_common as cc
 
 BASE = "http://raspbnodered.local:8088/api/v1"
+DISPLAY_WS_URL = "ws://raspbnodered.local:8088/api/v1/display/ws"
 CAPDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "captures")
 EVIDENCE_PATH = os.path.join(CAPDIR, "evidence.ndjson")
 MAX_PAGES = 15  # expect 11 menu items; hard stop well above that
@@ -49,6 +55,49 @@ def get_status():
 def get_display():
     """Full state object: chars grid + attrs grid (inverse-video/highlight)."""
     return get_json("display/state")["data"]["state"]
+
+
+def link_live(st=None):
+    """True if expert-amp-server currently has a real serial session to the amp.
+
+    Replaces the old `recentContact` pre-flight gate, which was wrong for an
+    idle amplifier. `recentContact` derives from change-based timestamps: the
+    runtime dedups snapshots that are deep-equal to the previous one and
+    deliberately does not touch `UpdatedAt` on that path (internal/runtime/
+    runtime.go), and `lastContactAt` is max(snapshot.UpdatedAt, lastProtocolAt).
+    So a healthy amp sitting in STANDBY with a static splash screen -- no
+    display change, and no protocol-native frames because the PA is idle --
+    reports `recentContact: false`, and being a bool with `omitempty` it
+    vanishes from the JSON entirely. Diagnosed 2026-08-25; it blocked every
+    capture script whenever the connected transceiver was switched off.
+
+    `source` is the signal that actually answers "is the link alive": the
+    server serves `fixture:*` placeholder data when it cannot open the serial
+    port (e.g. the EBUSY case after a bridge/pty mixup) and `serial` when it
+    genuinely has the amp. That is the condition worth gating on.
+
+    Note this is a necessary condition, not a sufficient one -- it says the
+    serial session exists, not that this specific press will be seen. The real
+    protection is `wait_for_change()`, which verifies every single press and
+    bails before the next one.
+    """
+    if st is None:
+        st = get_status()
+    return str(st.get("source", "")).startswith("serial")
+
+
+def preflight(st=None):
+    """(ok, reason) for 'safe to start driving the amp's menus'."""
+    if st is None:
+        st = get_status()
+    state = st.get("operatingState")
+    if state != "standby":
+        return False, f"operatingState={state!r} (must be 'standby')"
+    if st.get("tx"):
+        return False, "amplifier is transmitting"
+    if not link_live(st):
+        return False, f"no live serial link (source={st.get('source')!r})"
+    return True, f"standby, source={st.get('source')!r}"
 
 
 def press(name):
@@ -86,8 +135,83 @@ def save_capture(index, label, state, transition_label=""):
     return lines
 
 
-def wait_for_change(before, tries=6, delay=1.0):
-    """Re-read display until it differs from `before`. Returns new grid or None."""
+def _before_lines(before):
+    lines, _unknown = decode_grid(before["chars"])
+    return [l.rstrip() for l in lines if l.strip()]
+
+
+def wait_for_change(before, tries=25, delay=1.0):
+    """Wait for the display to change from `before`, then return a fresh
+    get_display() read (or None on timeout).
+
+    Uses expert-amp-server's own native push WebSocket
+    (/api/v1/display/ws, internal/server/display_ws.go) rather than
+    polling /api/v1/display/state -- found 2026-08-19 that opening a
+    second raw TCP connection to the SPE-LAN-UNIT's port-7388 serial
+    mirror (to work around HTTP polling staleness) actually corrupts/
+    desyncs expert-amp-server's own connection, which is worse. The
+    native WS is server-side-pushed the moment its internal Store
+    updates -- no polling, no second serial client, no desync risk.
+    Every message (including the immediate first one, which reflects
+    current state at connect time) is compared against `before`'s
+    decoded text, so a change that already happened before the socket
+    opens is still caught, not just changes strictly after connecting.
+    Falls back to the old polling method if `websocket-client` isn't
+    installed or the socket can't connect.
+    """
+    if _ws_client is None:
+        return _wait_for_change_poll(before, tries, delay)
+
+    DEBOUNCE = 1.5  # this hardware's LCD redraws in multiple stages -- a
+    # push differing from `before` can be a transient intermediate frame,
+    # not the final settled screen (observed live 2026-08-19: a single
+    # "first difference" return raced and returned pre-transition content).
+    # Wait for the push stream to go quiet for DEBOUNCE seconds before
+    # treating the display as settled.
+
+    timeout = max(1.0, tries * delay)
+    before_lines = _before_lines(before)
+    try:
+        conn = _ws_client.create_connection(DISPLAY_WS_URL, timeout=timeout)
+    except Exception:
+        return _wait_for_change_poll(before, tries, delay)
+
+    try:
+        deadline = time.time() + timeout
+        differed = False
+        while True:
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                return get_display() if differed else None
+            per_msg_timeout = DEBOUNCE if differed else remaining
+            conn.settimeout(min(per_msg_timeout, remaining))
+            try:
+                msg = conn.recv()
+            except Exception:
+                # Timeout or socket error mid-wait: if we'd already seen a
+                # difference, this is the debounce window going quiet --
+                # that's the normal "settled" exit, not a failure. If we
+                # never saw any difference at all, this is a genuine
+                # timeout; don't restart via polling and double the wait.
+                return get_display() if differed else None
+            try:
+                event = json.loads(msg)
+            except ValueError:
+                continue
+            screen_text = event.get("frame", {}).get("screenText", "")
+            pushed_lines = [l.rstrip() for l in screen_text.split("\n") if l.strip()]
+            if pushed_lines != before_lines:
+                differed = True
+            # else: a push identical to `before` while mid-debounce just
+            # resets the quiet window via the recv() above -- fine, since
+            # a genuinely settled final frame will stop producing pushes.
+    finally:
+        conn.close()
+
+
+def _wait_for_change_poll(before, tries=25, delay=1.0):
+    """Fallback: re-read display until it differs from `before` (old polling
+    method). Only used if the native WebSocket path is unavailable."""
     for _ in range(tries):
         time.sleep(delay)
         now = get_display()
@@ -106,8 +230,8 @@ def bail(reason):
 
 def main():
     st = get_status()
-    if st.get("operatingState") != "standby" or not st.get("recentContact"):
-        print(f"NOT SAFE TO START: operatingState={st.get('operatingState')} recentContact={st.get('recentContact')}")
+    if not preflight(st)[0]:
+        print(f"NOT SAFE TO START: {preflight(st)[1]}")
         sys.exit(2)
 
     os.makedirs(CAPDIR, exist_ok=True)

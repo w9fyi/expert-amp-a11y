@@ -13,7 +13,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from capture_menu import get_status, get_display, press, CAPDIR
+from capture_menu import get_status, get_display, press, CAPDIR, preflight
 from capture_subpage import bail
 
 POLL_INTERVAL = 0.08  # 80ms
@@ -33,8 +33,8 @@ def rapid_wait_for_change(before):
 
 def main():
     st = get_status()
-    if st.get("operatingState") != "standby" or not st.get("recentContact"):
-        print(f"NOT SAFE: operatingState={st.get('operatingState')} recentContact={st.get('recentContact')}")
+    if not preflight(st)[0]:
+        print(f"NOT SAFE: {preflight(st)[1]}")
         sys.exit(2)
 
     splash = get_display()
