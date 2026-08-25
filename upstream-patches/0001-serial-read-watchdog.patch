@@ -1,0 +1,101 @@
+From f04c4bbccbba4e9714a7304443e6fd6c3330eb17 Mon Sep 17 00:00:00 2001
+From: w9fyi <50081924+w9fyi@users.noreply.github.com>
+Date: Tue, 25 Aug 2026 05:04:16 -0500
+Subject: [PATCH] Add serial read watchdog to recover from silent stalls
+
+Local-only patch, not upstream. Adds a session-scoped watchdog goroutine
+inside readFromPort() that tracks lastReadActivity (updated after every
+port.Read() return, success or error) and force-closes the port if no
+Read() has returned at all for readWatchdogTimeout (5s).
+
+Closing the port unblocks the hung Read() with an error, which propagates
+through the existing "serial read: %w" path into the reconnect loop
+already present in Start() -- no new reconnect logic, just an intentional
+trigger for the one that was there.
+
+Fixes an observed ~23-minute total stall over the SPE-LAN-UNIT pty bridge
+where the service reported itself active/healthy with zero error logs and
+near-zero CPU, while lastContactAt stayed frozen at one timestamp. The amp
+and bridge were confirmed fine throughout via raw TCP 7388.
+
+5s is well above the 250ms configured timeout plus observed ~50-65ms LAN
+jitter, so it only fires on a genuine stall.
+
+Kept on this local branch because it is a heuristic workaround rather than
+a root-cause fix for the pty-vs-termios timeout mismatch in the underlying
+serial.Port implementation. Rebase onto origin/main to upgrade.
+---
+ internal/runtime/serial_source.go | 43 +++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+diff --git a/internal/runtime/serial_source.go b/internal/runtime/serial_source.go
+index eef7ba9..c2f35ea 100644
+--- a/internal/runtime/serial_source.go
++++ b/internal/runtime/serial_source.go
+@@ -417,6 +417,38 @@ func (s *SerialSource) readFromPort(ctx context.Context, port serial.Port, sessi
+ 
+ 	scheduler := newSerialPollScheduler(time.Now(), s.pollingMode(), s.pollInterval(), len(displayPollFrame) > 0, len(statusPollFrame) > 0)
+ 
++	// Watchdog: some transports (notably a Linux pty, as used by the
++	// SPE-LAN-UNIT's socat-bridged virtual COM port) do not reliably honor
++	// port.SetReadTimeout -- a blocked Read can hang indefinitely with no
++	// error and no log output, silently freezing this session forever even
++	// though the process otherwise reports healthy. If no Read() call has
++	// returned at all (success or error) for readWatchdogTimeout, force the
++	// port closed so the blocked Read unblocks with an error and the normal
++	// reconnect path in Start() takes over.
++	var lastReadActivity atomic.Int64
++	lastReadActivity.Store(time.Now().UnixNano())
++	watchdogDone := make(chan struct{})
++	defer close(watchdogDone)
++	go func() {
++		ticker := time.NewTicker(time.Second)
++		defer ticker.Stop()
++		for {
++			select {
++			case <-watchdogDone:
++				return
++			case <-ctx.Done():
++				return
++			case <-ticker.C:
++				last := time.Unix(0, lastReadActivity.Load())
++				if since := time.Since(last); since > s.readWatchdogTimeout() {
++					log.Printf("serial source: read watchdog: no read activity for %s, forcing reconnect (session %d)", since.Round(time.Millisecond), sessionGeneration)
++					_ = port.Close()
++					return
++				}
++			}
++		}
++	}()
++
+ 	buf := make([]byte, cfg.ReadSize)
+ 	for {
+ 		select {
+@@ -439,6 +471,7 @@ func (s *SerialSource) readFromPort(ctx context.Context, port serial.Port, sessi
+ 		}
+ 
+ 		n, err := port.Read(buf)
++		lastReadActivity.Store(time.Now().UnixNano())
+ 		if n > 0 {
+ 			chunk := append([]byte(nil), buf[:n]...)
+ 			for _, frame := range statusDecoder.Push(chunk) {
+@@ -1101,6 +1134,16 @@ func (s *SerialSource) ioTimeout() time.Duration {
+ 	return transport.DefaultButtonTimeout
+ }
+ 
++// readWatchdogTimeout bounds how long readFromPort's loop may go with zero
++// Read() calls returning (success or error) before the watchdog forces the
++// port closed to break a hung Read and trigger reconnect. Well above the
++// configured per-call ReadTimeout (default 250ms) plus normal network
++// jitter over the SPE-LAN-UNIT bridge (observed ~50-65ms round trip), so it
++// only fires on a genuine stall, not legitimate slowness.
++func (s *SerialSource) readWatchdogTimeout() time.Duration {
++	return 5 * time.Second
++}
++
+ func (s *SerialSource) reconnectBackoff() time.Duration {
+ 	if s.cfg.ReconnectBackoff > 0 {
+ 		return s.cfg.ReconnectBackoff
+-- 
+2.39.5
+
