@@ -4,5 +4,5 @@
  60 m: 1 N N |17 m: 3 1 5 | 6 m: 3 6 4
  40 m: 1 2 5 |15 m: 3 1 5 |       SAVE
 
-      SET 2nd ANTENNA ON 80m BAND
+      SET 1st ANTENNA ON 20m BAND
 [◄▲][▼►]:SEL [TUNE]:ATU Y/N [SET]:CHANGE

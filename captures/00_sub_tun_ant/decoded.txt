@@ -4,5 +4,5 @@
     ANT3: No      ANT6: No      SAVE
 
 
-     SET ANTENNA 2 AS TUNABLE TYPE
+     SET ANTENNA 3 AS TUNABLE TYPE
  [◄▲][▼►]:SELECT           [SET]:CHANGE
